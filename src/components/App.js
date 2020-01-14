@@ -1,115 +1,163 @@
-import React, { Component } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
-import Web3 from 'web3';
 import Navbar from './Navbar';
-import Main from './Main';
+import { getWeb3 } from './../utils.js';
 import SocialNetwork from '../abis/SocialNetwork.json';
+import Identicon from 'identicon.js';
 
 
 
-class App extends Component {
+function App(){
 
 
-  async componentWillMount(){
-    await this.loadWeb3()
-    await this.loadBlockchainData()
-  }
+  const [web3, setWeb3] = useState(undefined);
+  const [accounts, setAccounts] = useState(undefined);
+  const [contract, setContract] = useState(undefined);
+  const [posts, setPosts] = useState([]);
+  
 
-
-  async loadWeb3(){
-      if (window.ethereum) {
-      window.web3 = new Web3(window.ethereum)
-      await window.ethereum.enable()
+  useEffect(() => {
+    const init = async () => {
+      const web3 = await getWeb3();
+      const accounts = await web3.eth.getAccounts();
+      const networkId = await web3.eth.net.getId();
+      const deployedNetwork = SocialNetwork.networks[networkId];
+      const contract = new web3.eth.Contract(
+        SocialNetwork.abi,
+        deployedNetwork && deployedNetwork.address,
+      );
+      
+      
+      setWeb3(web3);
+      setAccounts(accounts);
+      setContract(contract);
+     
+      
     }
-    else if (window.web3) {
-      window.web3 = new Web3(window.web3.currentProvider)
-    }
-    else {
-      window.alert('Non-Ethereum browser detected. You should consider trying MetaMask!')
-    }
-  }
+    init();
+    window.ethereum.on('accountsChanged', accounts => {
+      setAccounts(accounts);
+    });
+  }, []);
 
-  async loadBlockchainData(){
-    const web3 = window.web3
-    //Load the account
-    const accounts = await web3.eth.getAccounts()
-    this.setState({ account: accounts[0] })
-    //Network ID
-    const networkID = await web3.eth.net.getId()
-    const networkData = SocialNetwork.networks[networkID]
-    if(networkData){
-      const socialNetwork = web3.eth.Contract(SocialNetwork.abi, networkData.address)
-      this.setState({ socialNetwork })
-      const postCount= await socialNetwork.methods.postCount().call()
-      this.setState({ postCount })
-      //Load posts
-      for (var i=1; i<=postCount; i++){
-        const post = await socialNetwork.methods.posts(i).call()
-        this.setState({
-          // Creates new Post array and adds new post to end
-          posts:[...this.state.posts, post]
-        })
-      }
-      this.setState({loading: false})
-    } else{
-      window.alert('SocialNetwork contract not deployed to network')
-    }
-    
-  }
-
-
-  createPost(content){
-    this.setState({loading: true})
-    this.state.socialNetwork.methods.createPost(content).send({ from: this.state.account })
-    .once('receipt', (receipt) => {
-      this.setState({loading: false})
-    })
-    
-  }
-
-  tipPost(id, tipAmount){
-    this.setState({loading: true})
-    this.state.socialNetwork.methods.tipPost(id).send({ from: this.state.account, value: tipAmount })
-    .once('receipt', (receipt) => {
-      this.setState({loading: false})
-    })
-  }
-
-
-
-  constructor(props){
-    super(props)
-    this.state = {
-      account:'',
-      socialNetwork: null,
-      postCount:0,
-      posts:[],
-      loading:true
-    }
-    this.createPost = this.createPost.bind(this)
-    this.tipPost = this.tipPost.bind(this)
-
-
-  }
-
-
-  render() {
+  const isReady = () => {
     return (
-      <div>
-        <Navbar account={this.state.account}/>
-        { this.state.loading
-          ? <div id="loader" className = "text-center mt-5"><p>Loading...</p></div>
-          : <Main
-           posts={this.state.posts}
-           createPost = {this.createPost}
-           tipPost = {this.tipPost}
-           
-           />
-           
-        }
-      </div>
+      typeof contract !== 'undefined' 
+      && typeof web3 !== 'undefined'
+      && typeof accounts !== 'undefined'
     );
   }
-}
+
+  useEffect(() => {
+    if(isReady()) {
+      
+      updatePosts();
+    }
+  }, [accounts, contract, web3]);
+
+  async function updatePosts() {
+    const postCount = parseInt(await contract.methods.postCount().call());
+
+    const posts = [];
+    for(let i = 0; i < postCount; i++) { 
+      posts.push(await contract.methods.posts(i).call());
+    }
+    
+    setPosts(await Promise.all(posts));
+    
+  }
+
+
+  async function createPost(e) {
+      e.preventDefault();
+      
+      const content = e.target.elements[0].value;
+      await contract.methods.createPost(content).send({ from: accounts[0] })
+      .once('receipt', (receipt) => {
+        window.location.reload();
+      })
+    }
+    
+  async function tipPost(id){
+        
+      const tipAmount = web3.utils.toWei('1','Ether');
+      await contract.methods.tipPost(id).send({ from: accounts[0], value: tipAmount })
+      .once('receipt', (receipt) => {
+        window.location.reload();
+      })
+      
+      
+    }
+
+  if (!isReady()) {
+    return <div id="loader" className = "text-center mt-5"><p>Loading...</p></div>
+  }
+
+    return (
+      <div>
+        <Navbar account={accounts[0]}/>
+        
+          <div className="container-fluid mt-5">
+                <div className="row">
+                    <main role="main" className="col-lg-12 ml-auto mr-auto" style={{maxWidth:'500px'}}>
+                    <div className="content mr-auto ml-auto">
+                        <form onSubmit={e =>  createPost(e) }>
+                            <div className="form-group mr-sm-2">
+                                <input
+                                    id="content"
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="What's on your Mind?"
+                                    required />
+                            </div>
+                            <button type="submit" className="btn btn-primary btn-block">Share</button>
+                        </form>
+                        <br/>
+                        { posts.map((post,key) => {
+                        return(
+                            <div className="card mb-4" key={key} >
+                            <div className="card-header">
+                                <img className="mr-2" 
+                                width='30' 
+                                height="30" 
+                                src={`data:image/png;base64,${new Identicon(post.author, 30).toString()}`}
+                                />
+                            <small className="text-muted">{post.author}</small>
+                            </div>
+                            <ul id="postList" className="list-group list-group-flush">
+                            <li className="list-group-item">
+                                <p>{post.content}</p>
+                            </li>
+                                <li key={key} className="list-group-item py-2">
+                                <small className="float-left mt-1 text-muted">TIPS: {web3.utils.fromWei(post.tipAmount.toString(),'Ether')} ETH
+                                </small>
+                                <button className="btn btn-link btn-sm float-right pt-0" onClick ={(event) => tipPost(post.id)}>
+                                
+                                <span>
+                                    TIP 1 ETH
+                                </span>
+                                </button>
+                                
+                            </li>
+                            </ul>
+                        </div>
+
+
+                            )
+                        })}
+                    </div>
+                    </main>
+                </div>
+            </div>
+           
+           
+           
+           
+        
+      </div>
+    );
+}   
+  
+
 
 export default App;

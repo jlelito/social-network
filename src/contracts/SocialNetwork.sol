@@ -33,10 +33,10 @@ contract SocialNetwork{
 	function createPost(string  memory _content) public {
 		//Require valid content
 		require(bytes(_content).length > 0);
-		//Increment the post count
-		postCount++;
 		//Create the post
 		posts[postCount] = Post(postCount, _content, 0, msg.sender);
+		//Increment the post count
+		postCount++;
 		//Trigger Event
 		emit PostCreated(postCount, _content, 0, msg.sender);
 	}
@@ -44,7 +44,7 @@ contract SocialNetwork{
 
 	function tipPost(uint _id) public payable{
 		//Valid ID
-		require(_id > 0 && _id <= postCount);
+		require(_id >= 0 && _id <= postCount);
 		//Fetch the post
 		Post memory _post = posts[_id];
 		//Fetch the author
