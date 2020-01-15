@@ -37,6 +37,7 @@ function App(){
     init();
     window.ethereum.on('accountsChanged', accounts => {
       setAccounts(accounts);
+      window.location.reload();
     });
   }, []);
 
@@ -89,6 +90,9 @@ function App(){
       
     }
 
+
+  
+
   if (!isReady()) {
     return <div id="loader" className = "text-center mt-5"><p>Loading...</p></div>
   }
@@ -131,12 +135,15 @@ function App(){
                                 <li key={key} className="list-group-item py-2">
                                 <small className="float-left mt-1 text-muted">TIPS: {web3.utils.fromWei(post.tipAmount.toString(),'Ether')} ETH
                                 </small>
-                                <button className="btn btn-link btn-sm float-right pt-0" onClick ={(event) => tipPost(post.id)}>
+
+                                <button className="btn btn-primary btn-sm float-right pt-0 mr-1" onClick ={(event) => tipPost(post.id)}>
                                 
-                                <span>
-                                    TIP 1 ETH
-                                </span>
+                                  <span>
+                                      TIP 1 ETH
+                                  </span>
+                                  
                                 </button>
+                                
                                 
                             </li>
                             </ul>

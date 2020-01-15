@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Social Network",
   "author": "joshualelito@gmail.com",
+  "homepage": "https://jlelito.github.io/social-network/",
   "dependencies": {
     "babel-polyfill": "6.26.0",
     "babel-preset-env": "1.7.0",
@@ -23,6 +24,8 @@
     "web3": "^1.2.4"
   },
   "scripts": {
+    "predeploy": "yarn run build",
+    "deploy": "gh-pages -d build",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
@@ -36,5 +39,10 @@
     "not dead",
     "not ie <= 11",
     "not op_mini all"
-  ]
+  ],
+  "devDependencies": {
+    "dotenv": "^8.2.0",
+    "gh-pages": "^2.2.0",
+    "truffle-hdwallet-provider": "^1.0.17"
+  }
 }
